@@ -1,0 +1,106 @@
+# Add pipeline using Add Jenkins User to Docker Group
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+
+#Pipeline code 
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "journal-app"
+        IMAGE = "abhi05sep/journal-app:${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/abhi05sep/Journal-app.git'
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                sh '''
+                    docker build -t $IMAGE .
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DH_USER',
+                        passwordVariable: 'DH_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+                        docker push $IMAGE
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker image prune -f'
+        }
+    }
+
+
+#Use Jenkins Docker Plugin
+#- Instead of calling docker build directly, use Jenkins’ Docker Pipeline plugin.
+
+#pipeline code 
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "journal-app"
+        IMAGE = "abhi05sep/journal-app:${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/abhi05sep/Journal-app.git'
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                script {
+                    dockerImage = docker.build("${IMAGE}")
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                dockerImage = docker.image("${IMAGE}")
+                dockerImage.remove()
+            }
+        }
+    }
+}
+
+
+
+}
