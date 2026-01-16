@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: journal
-        image: abhi05sep/journal-app:v3
+        image: abhi05sep/journal-app:4
         ports:
         - containerPort: 5000
 
